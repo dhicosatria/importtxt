@@ -4,40 +4,38 @@ namespace App\Http\Controllers\api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Todos;
-use App\Http\Resources\FormatPostResource;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 class TodoController extends Controller
 {
-    public function showTodo()
+    public function importTxt(Request $request)
     {
-        $data_todo = Todos::get();
+        $uploadedFile = $request->file('txt_file');
 
-        return [
-            'data_todo' => $data_todo,
-        ];
+        $contents = Storage::get($uploadedFile->path());
+
+        $lines = explode("\n", $contents);
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (!empty($line)) {
+                DB::table('members')->insert([
+                    'name' => $line,
+                ]);
+            }
+        }
+
+        return response()->json(['message' => 'TXT file imported successfully']);
     }
 
-    public function createTodo(Request $request)
+    public function dashboard()
     {
-        $receive = Todos::create([
-            'title' => $request->title,
-            'checked' => 0,
-        ]);
-    }
+        $data_domain = DB::table('members')->get();
 
-    public function deleteTodo($id)
-    {
-        $data_todo = Todos::findOrFail($id);
-        $data_todo->delete();
-    }
-
-    public function checkTodo(Request $request, $id)
-    {
-        $data_todo = Todos::findOrFail($id);
-      
-        $data_todo->update([
-            'checked' => $request->check,
+        return view('index', [
+            'data_domain' => $data_domain,
         ]);
     }
 }
+
