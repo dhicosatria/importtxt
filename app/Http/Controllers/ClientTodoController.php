@@ -126,6 +126,18 @@ class ClientTodoController extends Controller
             ],
         ]);
 
+        // $response2 = $client->request('PATCH', 'http://103.217.209.123:8081/api/v1/servers/localhost/zones/'.$domain_name.".", [
+        //     'json' => [
+        //         'rrsets' => [
+        //             [
+        //                 'name' => $domain_name.".", 
+        //                 'changetype' => "DELETE",
+        //                 'type' => "A"
+        //             ]
+        //                 ]
+        //             ]
+        // ]);
+
         $response = $client->request('DELETE', 'http://103.217.209.123:8081/api/v1/servers/localhost/zones/'.$domain_name);
 
         $delete_history = DB::table('history')->where('name', $domain_name)->delete();
