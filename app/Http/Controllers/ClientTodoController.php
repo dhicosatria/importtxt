@@ -68,13 +68,13 @@ class ClientTodoController extends Controller
                                 'name' => $domain_name.".", 
                                 'records' => [
                                     [
-                                        "content" => "49.128.177.13",
+                                        "content" => 'xblock.gmedia.net.id.',
                                         "disabled" => false,
                                     ],
                                 ],
                                 'ttl' => 3600,
                                 'changetype' => "REPLACE",
-                                'type' => "A"
+                                'type' => "ALIAS"
                             ]
                                 ]
                             ]
@@ -132,7 +132,7 @@ class ClientTodoController extends Controller
         //             [
         //                 'name' => $domain_name.".", 
         //                 'changetype' => "DELETE",
-        //                 'type' => "A"
+        //                 'type' => "CNAME"
         //             ]
         //                 ]
         //             ]

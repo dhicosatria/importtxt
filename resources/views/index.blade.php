@@ -54,7 +54,7 @@
                                 <h3 class="card-title">List Data</h3>
                             </div>
                             <div class="table-responsive"
-                                style="margin-right: 20px; margin-left: 20px; margin-top: 20px; margin-bottom: 20px;">
+                                style="margin-right: 20px; margin-left: 20px; margin-top: 10px; margin-bottom: 10px;">
                                 <table class="table card-table table-vcenter datatable">       
                                     <div class="row">
                                         <div class="mb-3 col-md-2" style="max-width: 145px;">
@@ -66,9 +66,12 @@
                                         <div class="mb-3 col-md-2" style="max-width: 85px;">
                                         <a href="{{ url('/history') }}"><button class="btn btn-default">History</button></a>
                                         </div>
-                                        <div class="mb-3 col-md-2" style="max-width: 80px;">
+                                        <div class="mb-3 col-md-2" style="max-width: 80px;" >
                                         <a href="{{ url('/export-powerdns') }}"><button class="btn btn-default">Sync</button></a>
                                         </div>
+                                        <div class="mb-3 col-md-2" style="max-width: 75px; margin-left: 730px">
+                                            <a href="{{ url('/login') }}"><button type="submit"button class="btn btn-outline-danger">Logout</button></a>
+                                            </div>
                                     </div>
                                     <thead>
                                         <tr>
