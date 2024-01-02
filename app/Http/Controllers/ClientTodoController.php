@@ -4,85 +4,185 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
+use session;    
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 class ClientTodoController extends Controller
 {
-    public function showTodo()
+    public function importTxt(Request $request)
     {
-        $client = new Client([
-            'headers' => [
-                'Authorization' => 'Bearer',
-                'Accept' => 'application/json',
-            ],
+        $request->validate([
+            'txt_file' => 'required',
         ]);
 
-        $response = $client->request('GET', 'http://localhost/betodo/public/api/');
-        $statusCode = $response->getStatusCode();
-        $body = $response->getBody();
+        $txtFile = $request->file('txt_file');
 
-        $data = json_decode($body);
-        
+        $txtContent = file_get_contents($txtFile->getPathname());
 
-        return view('index', [
-            'data_todo' => $data->data_todo,
-        ]);
-    }
+        $lines = explode("\n", $txtContent);
 
-    public function createTodo(Request $request)
-    {
-        $this->validate($request, [
-            'title' => 'required',
-        ]);
+        foreach ($lines as $line) {
+            $line = trim($line);
+            $duplicate = DB::table('domains')->where('name', $line)->first();
 
-        $client = new Client([
-            'headers' => [
-                'Authorization' => 'Bearer',
-                'Accept' => 'application/json',
-            ],
-        ]);
-        
-        $response = $client->request('POST', 'http://localhost/betodo/public/api/add-todo',
-        [
-            'json' => [
-                'title' => $request->title,
-            ]
-        ]
-        );
+            if (!empty($line) && !$duplicate) {
+                DB::table('domains')->insert(['name' => $line]);
+            }
+        }
 
         return redirect('/');
     }
 
-    public function deleteTodo($id)
+
+    public function exportPowerDNS()
     {
         $client = new Client([
             'headers' => [
                 'Authorization' => 'Bearer',
                 'Accept' => 'application/json',
+                'X-API-Key' => 'X8sEItGoEcwo7MLQo6jE4RgTTQ8CjIlr'
             ],
         ]);
         
-        $response = $client->request('DELETE', 'http://localhost/betodo/public/api/delete-todo/'.$id);
-
-        return redirect('/');
-    }    
-
-    public function checkTodo(Request $request, $id)
-    {
-        $client = new Client([
-            'headers' => [
-                'Authorization' => 'Bearer',
-                'Accept' => 'application/json',
-            ],
-        ]);
+        $data_domains = DB::table('domains')->get()->chunk(100);
         
-        $response = $client->request('PUT', 'http://localhost/betodo/public/api/check-todo/'.$id,
-        [
-            'json' => [
-                'check' => $request->check,
-            ]
-        ]
-        );
+        foreach ($data_domains as $data_domain) {
+            foreach ($data_domain as $item) {
+                $domain_name = $item->name;
+
+                $response = $client->request('POST', 'http://103.217.209.123:8081/api/v1/servers/localhost/zones', [
+                    'json' => [
+                        'name' => $domain_name . '.', 
+                        'kind' => "Native",
+                        'masters' => [],
+                        'nameservers' => ['ns1.' . $domain_name . '.', 'ns2.' . $domain_name . '.'] 
+                    ]
+                ]);
+                
+                $response2 = $client->request('PATCH', 'http://103.217.209.123:8081/api/v1/servers/localhost/zones/'.$domain_name.".", [
+                    'json' => [
+                        'rrsets' => [
+                            [
+                                'comments' => [],
+                                'name' => $domain_name.".", 
+                                'records' => [
+                                    [
+                                        "content" => 'xblock.gmedia.net.id.',
+                                        "disabled" => false,
+                                    ],
+                                ],
+                                'ttl' => 3600,
+                                'changetype' => "REPLACE",
+                                'type' => "ALIAS"
+                            ]
+                                ]
+                            ]
+                ]);
+                
+                $history = DB::table('history')->insert([
+                    'name' => $domain_name
+                ]);
+                
+
+                if($history){
+                    DB::table('domains')->where('name', $domain_name)->delete();
+                }
+            }
+        }
 
         return redirect('/');
     }
+
+    public function createDomain(Request $request)
+    {
+        $domain_name = $request->domain;
+    
+        // Cek apakah data dengan nama yang sama sudah ada
+        $duplicate = DB::table('domains')->where('name', $domain_name)->first()||DB::table('history')->where('name', $domain_name)->first();
+    
+        if ($duplicate) {
+            return response()->json([
+                'message' => 'Data with name ' . $domain_name . ' already exists.',
+            ], 400); // Mengirim respons JSON dengan pesan kesalahan
+        }
+    
+        // Jika tidak ada data duplikat, tambahkan data ke database
+        $insert = DB::table('domains')->insert([
+            'name' => $domain_name,
+        ]);
+    
+        return redirect('/');
+    }
+
+
+    public function deleteDomain($domain_name)
+    {
+        $client = new Client([
+            'headers' => [
+                'Authorization' => 'Bearer',
+                'Accept' => 'application/json',
+                'X-API-Key' => 'X8sEItGoEcwo7MLQo6jE4RgTTQ8CjIlr'
+            ],
+        ]);
+
+        // $response2 = $client->request('PATCH', 'http://103.217.209.123:8081/api/v1/servers/localhost/zones/'.$domain_name.".", [
+        //     'json' => [
+        //         'rrsets' => [
+        //             [
+        //                 'name' => $domain_name.".", 
+        //                 'changetype' => "DELETE",
+        //                 'type' => "CNAME"
+        //             ]
+        //                 ]
+        //             ]
+        // ]);
+
+        $response = $client->request('DELETE', 'http://103.217.209.123:8081/api/v1/servers/localhost/zones/'.$domain_name);
+
+        $delete_history = DB::table('history')->where('name', $domain_name)->delete();
+
+        return redirect('/history');
+    }
+    public function deleteListDomain($domain_name)
+    {
+        $delete_history = DB::table('domains')->where('name', $domain_name)->delete();
+
+        return redirect('/');
+    }
+
+    // public function addrrset($domain_name)
+    // {
+    //     $client = new Client([
+    //         'headers' => [
+    //             'Authorization' => 'Bearer',
+    //             'Accept' => 'application/json',
+    //             'X-API-Key' => 'X8sEItGoEcwo7MLQo6jE4RgTTQ8CjIlr'
+    //         ],
+    //     ]);
+
+
+    //             $response = $client->request('PATCH', 'http://103.217.209.123:8081/api/v1/servers/localhost/zones/'.$domain_name.".", [
+    //                 'json' => [
+    //                     'rrsets' => [
+    //                         [
+    //                             'comments' => [],
+    //                             'name' => $domain_name.".", 
+    //                             'records' => [
+    //                                 [
+    //                                     "content" => "49.128.177.13",
+    //                                     "disabled" => false,
+    //                                 ],
+    //                             ],
+    //                             'ttl' => 3600,
+    //                             'changetype' => "REPLACE",
+    //                             'type' => "A"
+    //                         ]
+    //                             ]
+    //                         ]
+    //             ]);
+                
+
+    //     return redirect('/rrset');
+    // }
 }
